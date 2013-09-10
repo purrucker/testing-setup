@@ -4,23 +4,29 @@ namespace Qafoo;
 
 class Checkout
 {
-    private $price = 0.0;
-
+    private $productContainer;
+    private $sum;
     private $display;
 
-    public function __construct(Display $display)
+    public function __construct(Display $display, ProductContainer $container)
     {
+        $this->productContainer = $container;
         $this->display = $display;
     }
 
-    public function registerProduct($price)
+    public function registerProduct($productName)
     {
-        $this->price += $price;
-        $this->display->renderText($this->price);
+        try {
+            $product = $this->productContainer->getProductByName($productName);
+            $this->display->renderText($product->getPrice());
+            $this->sum += $product->getPrice();
+        } catch(\RuntimeException $e) {
+            throw new \RuntimeException("Could not register product!");
+        }
     }
 
     public function calculateSum()
     {
-         return $this->price;
+         return $this->sum;
     }
 }

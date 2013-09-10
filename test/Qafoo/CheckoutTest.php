@@ -4,9 +4,12 @@ namespace Qafoo;
 
 class CheckoutTest extends \PHPUnit_Framework_TestCase
 {
+    /** @var  Checkout */
     private $checkout;
 
     private $displayMock;
+
+    private $productContainerMock;
 
     public function setUp()
     {
@@ -15,30 +18,31 @@ class CheckoutTest extends \PHPUnit_Framework_TestCase
 
         $this->displayMock = $builder->getMock();
 
+        $builder = $this->getMockBuilder('Qafoo\\ProductContainer');
+        $builder->disableOriginalConstructor();
+
+        $this->productContainerMock = $builder->getMock();
+
         $this->checkout = new Checkout(
-            $this->displayMock
-        );
-    }
-
-    public function testCheckoutCalculatesForSingleProduct()
-    {
-        $this->checkout->registerProduct(0.42);
-
-        $this->assertEquals(
-            0.42,
-            $this->checkout->calculateSum()
+            $this->displayMock,
+            $this->productContainerMock
         );
     }
 
     /**
      * @test
      */
-    public function with_another_single_product_checkout_calculates_correct()
+    public function testCheckoutCalculatesForSingleProduct()
     {
-        $this->checkout->registerProduct(0.23);
+        $this->productContainerMock->expects($this->any())
+            ->method('getProductByName')
+            ->will(
+                $this->returnValue(new Product("A",30))
+            );
+        $this->checkout->registerProduct("A");
 
         $this->assertEquals(
-            0.23,
+            30,
             $this->checkout->calculateSum()
         );
     }
@@ -48,11 +52,26 @@ class CheckoutTest extends \PHPUnit_Framework_TestCase
      */
     public function with_two_products_checkout_calculates_correct()
     {
-        $this->checkout->registerProduct(0.23);
-        $this->checkout->registerProduct(0.42);
+        $this->productContainerMock->expects($this->any())
+            ->method('getProductByName')
+            ->will(
+                $this->returnCallback(
+                    function ($name) {
+                        if($name == "A") {
+                            return new Product("A", 30);
+                        }
+                        if($name == "B") {
+                            return new Product("B", 10);
+                        }
+                    }
+                )
+            );
+
+        $this->checkout->registerProduct("A");
+        $this->checkout->registerProduct("B");
 
         $this->assertEquals(
-            0.65,
+            40,
             $this->checkout->calculateSum()
         );
     }
@@ -65,35 +84,29 @@ class CheckoutTest extends \PHPUnit_Framework_TestCase
         $this->displayMock->expects($this->once())
             ->method('renderText')
             ->with(
-                $this->equalTo('0.23')
+                $this->equalTo(30)
+            );
+        $this->productContainerMock->expects($this->any())
+            ->method('getProductByName')
+            ->will(
+                $this->returnValue(new Product("A",30))
             );
 
-        $this->checkout->registerProduct(0.23);
+        $this->checkout->registerProduct("A");
+
     }
 
-    public function stub_example_without_test_execution()
+    /**
+     * @test
+     */
+    public function register_non_existent_product()
     {
-        $this->displayMock->expects($this->any())
-            ->method('renderText')
-            ->will(
-                $this->returnValue('foo bar')
-            );
-
-        $this->displayMock->expects($this->any())
-            ->method('renderText')
+        $this->productContainerMock->expects($this->any())
+            ->method('getProductByName')
             ->will(
                 $this->throwException(new \RuntimeException())
             );
-
-        $this->displayMock->expects($this->any())
-            ->method('renderText')
-            ->will(
-                $this->returnCallback(
-                    function ($foo, $bar)
-                    {
-                        // ... whatever ...
-                    }
-                )
-            );
+        $this->setExpectedException("RuntimeException", "Could not register product!");
+        $this->checkout->registerProduct("A");
     }
 }
